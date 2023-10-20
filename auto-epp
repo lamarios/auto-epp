@@ -12,13 +12,15 @@ epp_state_for_AC=balance_performance
 epp_state_for_BAT=power
 """
 
+
 def check_root():
-    if os.geteuid() == 0:
+    if can_write_files():
         return
-    else:                                        
+    else:
         print("auto-epp must be run with root privileges.")
         sys.stdout.flush()
         exit(1)
+
 
 def check_driver():
     scaling_driver_path = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver"
@@ -34,6 +36,7 @@ def check_driver():
         sys.stdout.flush()
         exit(1)
 
+
 def read_config():
     if not os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'w') as file:
@@ -43,6 +46,7 @@ def read_config():
     epp_state_for_AC = config.get("Settings", "epp_state_for_AC")
     epp_state_for_BAT = config.get("Settings", "epp_state_for_BAT")
     return epp_state_for_AC, epp_state_for_BAT
+
 
 def charging():
     power_supply_path = "/sys/class/power_supply/"
@@ -88,6 +92,7 @@ def charging():
     # we cannot determine discharging state, assume we are on powercable
     return True
 
+
 def set_governor():
     get_governor_file_path = '/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor'
     try:
@@ -107,6 +112,7 @@ def set_governor():
     except:
         exit(1)
 
+
 def set_epp(epp_value):
     cpu_count = os.cpu_count()
     for cpu in range(cpu_count):
@@ -116,7 +122,22 @@ def set_epp(epp_value):
                 file.write(epp_value)
         except:
             exit(1)
-            
+
+
+def can_write_files():
+    need_write = ['/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor', '/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference']
+
+    try:
+        for f in need_write:
+            f = open(f, "w")
+            if not f.writable():
+                return False
+
+        return True
+    except:
+        return False
+
+
 def main():
     check_root()
     check_driver()
@@ -128,6 +149,7 @@ def main():
         else:
             set_epp(epp_state_for_BAT)
         time.sleep(2)
+
 
 if __name__ == "__main__":
     main()
